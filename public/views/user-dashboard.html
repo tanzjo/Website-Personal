@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>User Dashboard - Absensi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/js/camera.js"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-6">
+  <div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-slate-800">
+      <div>
+        <h1 id="welcomeText" class="text-2xl font-bold">Selamat Datang!</h1>
+        <p id="userPosition" class="text-slate-400 text-sm"></p>
+      </div>
+      <button onclick="logout()" class="px-4 py-2 bg-red-600 text-sm rounded-xl font-semibold">Logout</button>
+    </div>
+
+    <!-- Live Camera Panel -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 text-center">
+      <h2 class="text-lg font-bold mb-4">Kamera Absensi Live</h2>
+      <video id="webcam" autoplay playsinline class="w-full max-w-sm mx-auto rounded-xl border border-slate-700 bg-black mb-4"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+      
+      <div class="flex justify-center space-x-4">
+        <button onclick="doAttendance('check-in')" class="px-6 py-3 bg-green-600 rounded-xl font-bold">Absen Masuk</button>
+        <button onclick="doAttendance('check-out')" class="px-6 py-3 bg-indigo-600 rounded-xl font-bold">Absen Pulang</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cam;
+    window.onload = async () => {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) return window.location.href = '/';
+      const user = (await res.json()).user;
+      document.getElementById('welcomeText').innerText = `Halo, ${user.fullName}`;
+      document.getElementById('userPosition').innerText = user.position;
+
+      cam = new CameraHandler(document.getElementById('webcam'), document.getElementById('canvas'));
+      await cam.startCamera();
+    };
+
+    async function doAttendance(type) {
+      try {
+        const selfieImage = cam.takeSnapshot();
+        const gps = await CameraHandler.getGPS();
+
+        const res = await fetch(`/api/attendance/${type}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            selfieImage,
+            latitude: gps.latitude,
+            longitude: gps.longitude,
+            device: navigator.platform,
+            browser: navigator.userAgent
+          })
+        });
+        const data = await res.json();
+        alert(data.message);
+      } catch (err) {
+        alert(err);
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

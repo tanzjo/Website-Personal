@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-slate-800">
+      <h1 class="text-2xl font-bold text-indigo-400">Panel Control Admin HRD</h1>
+      <button onclick="logout()" class="px-4 py-2 bg-red-600 text-sm rounded-xl font-semibold">Logout</button>
+    </div>
+
+    <!-- Statistik -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800"><p class="text-slate-400 text-xs">Total User</p><h3 id="statTotalUsers" class="text-2xl font-bold">0</h3></div>
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800"><p class="text-slate-400 text-xs">Pending</p><h3 id="statPending" class="text-2xl font-bold text-yellow-400">0</h3></div>
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800"><p class="text-slate-400 text-xs">Hadir Hari Ini</p><h3 id="statHadir" class="text-2xl font-bold text-green-400">0</h3></div>
+      <div class="bg-slate-900 p-4 rounded-xl border border-slate-800"><p class="text-slate-400 text-xs">Terlambat</p><h3 id="statTerlambat" class="text-2xl font-bold text-red-400">0</h3></div>
+    </div>
+
+    <!-- Approval Permintaan Akun -->
+    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+      <h2 class="text-lg font-bold mb-4">Permintaan Pendaftaran Akun</h2>
+      <div id="requestList" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = async () => {
+      loadStats();
+      loadRequests();
+    };
+
+    async function loadStats() {
+      const res = await fetch('/api/admin/stats');
+      if (res.ok) {
+        const { stats } = await res.json();
+        document.getElementById('statTotalUsers').innerText = stats.totalUsers;
+        document.getElementById('statPending').innerText = stats.pendingUsers;
+        document.getElementById('statHadir').innerText = stats.hadirHariIni;
+        document.getElementById('statTerlambat').innerText = stats.terlambatHariIni;
+      }
+    }
+
+    async function loadRequests() {
+      const res = await fetch('/api/admin/account-requests');
+      if (res.ok) {
+        const { data } = await res.json();
+        const container = document.getElementById('requestList');
+        container.innerHTML = data.length === 0 ? '<p class="text-slate-500 text-sm">Tidak ada permintaan pending.</p>' : '';
+        data.forEach(req => {
+          container.innerHTML += `
+            <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl">
+              <div>
+                <p class="font-bold text-sm">${req.fullName} (@${req.username})</p>
+                <p class="text-xs text-slate-400">${req.position} -${req.phone}</p>
+              </div>
+              <div class="space-x-2">
+                <button onclick="approve('${req.id}')" class="px-3 py-1.5 bg-green-600 text-xs rounded-lg font-bold">Approve</button>
+                <button onclick="reject('${req.id}')" class="px-3 py-1.5 bg-red-600 text-xs rounded-lg font-bold">Reject</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+    }
+
+    async function approve(requestId) {
+      await fetch('/api/admin/approve-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId })
+      });
+      loadStats(); loadRequests();
+    }
+
+    async function reject(requestId) {
+      await fetch('/api/admin/reject-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId })
+      });
+      loadStats(); loadRequests();
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>
